@@ -55,8 +55,9 @@ class Bunchie {
     });
 
     p(this).canFlush = canFlush || p(this).canFlush || (({minBunchedCount, minWaitTime} = {}) => {
-      return (!minWaitTime || !p(this).state.activeTimeout) &&
-             (!minBunchedCount || p(this).state.bunchedCount >= minBunchedCount);
+      return (!minWaitTime && !minBunchedCount) ||
+             (minWaitTime && !p(this).state.activeTimeout) ||
+             (minBunchedCount && (p(this).state.bunchedCount >= minBunchedCount)); 
     });
   }
 
