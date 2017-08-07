@@ -302,7 +302,8 @@ function handleMiddleware(middleware, payload) {
   for (let i = 1; i < middleware.length; i++) {
     chain = chain.then(() => middleware[i](payload));
   }
-  return chain;
+  return chain
+  .then(() => payload);
 }
 
 
