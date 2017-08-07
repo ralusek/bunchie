@@ -58,7 +58,7 @@ class Bunchie {
 
     p(this).scopes = new Map();
 
-    p(this).middleware = [];
+    p(this).middleware = new Map();
 
     p(this).activeTimeout;
 
@@ -131,8 +131,9 @@ class Bunchie {
   /**
    *
    */
-  single(scope, config) {
+  single(scope, config, middleware) {
     const bunchie = this.scoped(scope, config);
+    if (middleware) bunchie.addMiddleware(middleware);
 
     const promise = p(bunchie).promise;
 
@@ -149,8 +150,9 @@ class Bunchie {
   /**
    *
    */
-  add(value, scope) {
+  add(value, scope, middleware) {
     const bunchie = this.scoped(scope);
+    if (middleware) bunchie.addMiddleware(middleware);
 
     const promise = p(bunchie).promise;
     
@@ -168,8 +170,9 @@ class Bunchie {
   /**
    *
    */
-  set(key, value, scope) {
+  set(key, value, scope, middleware) {
     const bunchie = this.scoped(scope);
+    if (middleware) bunchie.addMiddleware(middleware);
 
     const promise = p(bunchie).promise;
     
@@ -187,8 +190,9 @@ class Bunchie {
   /**
    *
    */
-  push(value, scope) {
+  push(value, scope, middleware) {
     const bunchie = this.scoped(scope);
+    if (middleware) bunchie.addMiddleware(middleware);
 
     const promise = p(bunchie).promise;
     
@@ -206,9 +210,13 @@ class Bunchie {
   /**
    *
    */
-  addMiddleware(middleware, scope) {
+  addMiddleware(name, middleware, scope) {
     const bunchie = this.scoped(scope);
-    p(bunchie).middleware.push(middleware);
+    if (name.call) {
+      middleware = name;
+      name = '_default';
+    }
+    p(bunchie).middleware.set(name, middleware);
   }
 
 
@@ -298,10 +306,8 @@ function handleTimeout(bunchie) {
  *
  */
 function handleMiddleware(middleware, payload) {
-  let chain = Promise.resolve(middleware[0] ? middleware[0](payload) : payload);
-  for (let i = 1; i < middleware.length; i++) {
-    chain = chain.then(() => middleware[i](payload));
-  }
+  let chain = Promise.resolve();
+  middleware.forEach(middleware => chain = chain.then(() => middleware(payload)));
   return chain
   .then(() => payload);
 }
