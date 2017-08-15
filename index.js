@@ -124,7 +124,7 @@ class Bunchie {
     const bunch = clear[type](this);
     if (p(this).parent && this.getConfigValue('dispose', {dispose})) p(this).parent.scopeDispose(p(this).scope);
 
-    deferred.resolve({bunch});
+    deferred.resolve({bunch, scope: p(this).scope, parent: p(this).parent});
   }
 
 
@@ -226,7 +226,7 @@ class Bunchie {
   scoped(scope, config) {
     let scoped;
     if (scope) {
-      scoped = p(this).scopes.get(scope) || new Bunchie({parent: this});
+      scoped = p(this).scopes.get(scope) || new Bunchie({parent: this, scope});
       p(this).scopes.set(scope, scoped);
     }
     else scoped = this;
