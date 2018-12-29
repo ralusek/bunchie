@@ -1,327 +1,103 @@
 'use strict';
 
 
-// This establishes a private namespace.
-const namespace = new WeakMap();
-function p(object) {
-  if (!namespace.has(object)) namespace.set(object, {});
-  return namespace.get(object);
+/**
+ *
+ */
+function bunch(handler, {
+  debounce = 1000,
+  maxTimeout = Infinity,
+  maxCount = Infinity,
+  onHandle
+} = {}) {
+  let argHistory;
+  let firstInvocation;
+  let invokeBy;
+  let activeTimeout;
+  let count;
+  let deferred = [];
+
+  reset();
+
+  return (...args) => {
+    firstInvocation = firstInvocation || Date.now();
+
+    let index;
+    if (args.length) index = argHistory.push(args) - 1;
+
+    const promise = new Promise((resolve) => deferred.push({resolve, args, index}));
+
+    // Handle case of maxCount.
+    if (++count === maxCount) handle(args);
+    else {
+      // Handle debounce.
+      clearTimeout(activeTimeout);
+      const timeUntilMaxTimeout = invokeBy - Date.now();
+      const deadline = timeUntilMaxTimeout < debounce ? timeUntilMaxTimeout : debounce;
+      activeTimeout = setTimeout(() => handle(...args), deadline);
+    }
+
+    return promise;
+  }
+
+  function reset() {
+    argHistory = [];
+    count = 0;
+    activeTimeout = clearTimeout(activeTimeout);
+    firstInvocation = Date.now();
+    invokeBy = firstInvocation + maxTimeout;
+    deferred = [];
+  }
+
+  function handle(...args) {
+    const handleArgs = argHistory;
+    const toDefer = deferred;
+
+    reset();
+
+    onHandle && onHandle(...handleArgs);
+
+    return Promise.resolve(handler(...handleArgs))
+    .then(result => {
+      toDefer.forEach(deferred => deferred.resolve({
+        index: deferred.index,
+        invokedWith: deferred.args,
+        handledWith: handleArgs,
+        result
+      }));
+    });
+  }
 }
 
+module.exports.bunch = bunch;
 
-const CONFIG = Object.freeze({
-  default: Object.freeze({
-    minCount: 0,
-    minWait: 0,
-    // Whether or not to dispose of a scoped bunchie on flush.
-    dispose: true,
 
-    canFlush: (bunchie, {minWait, minCount}) => {
-      let count = 0;
-      for (let prop in p(bunchie).count) {
-        count += p(bunchie).count[prop];
-      }
 
-      return (!minWait && !minCount) ||
-             (minWait && !p(bunchie).activeTimeout) ||
-             (minCount && (count >= minCount)); 
-    }
-  }),
-  global: {}
-});
+
+const bunchedOnString = {};
 
 
 /**
  *
  */
-class Bunchie {
-  /**
-   *
-   */
-  constructor(config = {}) {
-    this.configure(config);
+function bunchOnString(string, handler, config) {
+  if (!bunchedOnString[string]) {
+    config = config || {};
 
-    p(this).parent = config.parent;
-    p(this).scope = config.scope;
-
-    p(this).set = new Set();
-    p(this).map = new Map();
-    p(this).list = [];
-
-    p(this).count = {
-      single: 0,
-
-      set: 0,
-      map: 0,
-      list: 0
+    const providedOnHandle = config.onHandle;
+    // Override provided onHandle so that we can handle deleting the bunchie.
+    // We then innvoke the provided onHandle if it was...provided.
+    config.onHandle = (...handleArgs) => {
+      delete bunchedOnString[string];
+      if (providedOnHandle) providedOnHandle(...handleArgs);
     };
 
-    p(this).scopes = new Map();
-
-    p(this).middleware = new Map();
-
-    p(this).activeTimeout;
-
-    if (config.Promise) Promise = config.Promise;
-
-    resetPromise(this);
+    bunchedOnString[string] = bunch((...args) => {
+      return handler(string, ...args);
+    }, config);
   }
 
-  /**
-   *
-   */
-  configure(config = {}, scope) {
-    const bunchie = this.scoped(scope);
-    p(bunchie).config = Object.assign({}, p(bunchie).config || {}, config);
-  }
-
-
-  /**
-   *
-   */
-  canFlush() {
-    const minWait = this.getConfigValue('minWait');
-    const minCount = this.getConfigValue('minCount');
-
-    const count = Object.assign({}, p(this).count);
-
-    const canFlush = this.getConfigValue('canFlush');
-
-    return canFlush(this, {count, minCount, minWait});
-  }
-
-  /**
-   *
-   */
-  flush({dispose, type} = {}) {
-    if (this.canFlush()) this.forceFlush({dispose, type});
-  }
-
-
-  /**
-   *
-   */
-  forceFlush({dispose, type}) {
-    if (!type) {
-      const inUse = [
-        ~~!!p(this).count.single,
-        ~~!!p(this).set.size,
-        ~~!!p(this).map.size,
-        ~~!!p(this).list.length
-      ];
-      if (inUse.reduce((sum, value) => sum + value, 0) > 1) throw new Error('Cannot flush Bunchie, more than one type of tracking was used and none specified. Must specify "single", "set", "map", or "list".');
-      type = inUse[0] ? 'single' :
-             inUse[1] ? 'set' :
-             inUse[2] ? 'map' : 'list';
-    }
-
-    // Clear timeout
-    p(this).activeTimeout = clearTimeout(p(this).activeTimeout);
-
-    const deferred = p(this).deferred;
-    resetPromise(this);
-
-    const bunch = clear[type](this);
-    if (p(this).parent && this.getConfigValue('dispose', {dispose})) p(this).parent.scopeDispose(p(this).scope);
-
-    deferred.resolve({bunch, scope: p(this).scope, parent: p(this).parent});
-  }
-
-
-  /**
-   *
-   */
-  single(scope, config, middleware) {
-    const bunchie = this.scoped(scope, config);
-    if (middleware) bunchie.addMiddleware(middleware);
-
-    const promise = p(bunchie).promise;
-
-    p(bunchie).count.single++;
-    handleTimeout(bunchie);
-
-    bunchie.flush({type: 'single'});
-
-    return promise
-    .then(result => Object.assign({}, result, {scope}));
-  }
-
-
-  /**
-   *
-   */
-  add(value, scope, middleware) {
-    const bunchie = this.scoped(scope);
-    if (middleware) bunchie.addMiddleware(middleware);
-
-    const promise = p(bunchie).promise;
-    
-    p(bunchie).set.add(value);
-    p(bunchie).count.set++;
-    handleTimeout(bunchie);
-
-    bunchie.flush({type: 'set'});
-
-    return promise
-    .then(result => Object.assign({}, result, {value, scope}));
-  }
-
-
-  /**
-   *
-   */
-  set(key, value, scope, middleware) {
-    const bunchie = this.scoped(scope);
-    if (middleware) bunchie.addMiddleware(middleware);
-
-    const promise = p(bunchie).promise;
-    
-    p(bunchie).map.set(key, value);
-    p(bunchie).count.map++;
-    handleTimeout(bunchie);
-
-    bunchie.flush({type: 'map'});
-
-    return promise
-    .then(result => Object.assign({}, result, {key, value, scope}));
-  }
-
-
-  /**
-   *
-   */
-  push(value, scope, middleware) {
-    const bunchie = this.scoped(scope);
-    if (middleware) bunchie.addMiddleware(middleware);
-
-    const promise = p(bunchie).promise;
-    
-    p(bunchie).list.push(value);
-    p(bunchie).count.list++;
-    handleTimeout(bunchie);
-
-    bunchie.flush({type: 'list'});
-
-    return promise
-    .then(result => Object.assign({}, result, {value, scope}));
-  }
-
-
-  /**
-   *
-   */
-  addMiddleware(name, middleware, scope) {
-    const bunchie = this.scoped(scope);
-    if (name.call) {
-      middleware = name;
-      name = '_default';
-    }
-    p(bunchie).middleware.set(name, middleware);
-  }
-
-
-  /**
-   *
-   */
-  scoped(scope, config) {
-    let scoped;
-    if (scope) {
-      scoped = p(this).scopes.get(scope) || new Bunchie({parent: this, scope});
-      p(this).scopes.set(scope, scoped);
-    }
-    else scoped = this;
-
-    if (config) scoped.configure(config);
-    return scoped;
-  }
-
-
-  /**
-   *
-   */
-  scopeDispose(scope) {
-    p(this).scopes.delete(p(this).scope);
-  }
-
-
-  /**
-   *
-   */
-  getConfigValue(key, config = {}) {
-    return config[key] !== undefined ?
-      config[key] :
-    (p(this).config[key] !== undefined) ?
-      p(this).config[key] :
-    (CONFIG.global[key] !== undefined) ?
-      CONFIG.global[key] :
-    CONFIG.default[key];
-  }
+  return bunchedOnString[string];
 }
 
-
-/**
- *
- */
-const clear = {
-  single: bunchie => {
-    const single = p(bunchie).single;
-    p(bunchie).count.single = 0;
-    return single;
-  },
-  set: bunchie => {
-    const set = p(bunchie).set;
-    p(bunchie).set = new Set();
-    p(bunchie).count.set = 0;
-    return set;
-  },
-  map: bunchie => {
-    const map = p(bunchie).map;
-    p(bunchie).map = new Map();
-    p(bunchie).count.map = 0;
-    return map;
-  },
-  list: bunchie => {
-    const list = p(bunchie).list;
-    p(bunchie).list = new Set();
-    p(bunchie).count.list = 0;
-    return list;
-  }
-};
-
-
-/**
- *
- */
-function handleTimeout(bunchie) {
-  const minWait = bunchie.getConfigValue('minWait');
-  if (!minWait || p(bunchie).activeTimeout) return;
-  p(bunchie).activeTimeout = setTimeout(() => {
-    p(bunchie).activeTimeout = null;
-    bunchie.flush();
-  }, minWait);
-}
-
-
-/**
- *
- */
-function handleMiddleware(middleware, payload) {
-  let chain = Promise.resolve();
-  middleware.forEach(middleware => chain = chain.then(() => middleware(payload)));
-  return chain
-  .then(() => payload);
-}
-
-
-/**
- *
- */
-function resetPromise(bunchie) {
-  p(bunchie).promise = new Promise((resolve, reject) => {
-    p(bunchie).deferred = ({resolve, reject});
-  })
-  .then(payload => handleMiddleware(p(bunchie).middleware, payload));
-}
-
-
-module.exports = new Bunchie();
+module.exports.bunchOnString = bunchOnString;

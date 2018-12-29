@@ -1,82 +1,122 @@
 This is a utility to batching together many individual calls by timing or by
 count before proceeding as a batch.
 
-An example utility might be that we wanted to be able to many requests to a cache,
-but rather than making thousands of requests, we'd rather the requests pool
-together to minimize the actual requests we make to the cache. If we wanted to
-do this, we would have to attempt to manage all of these requests together, to
-coordinate this, when our business logic would be much better of just not worrying
-about such things.
+## Example
 
-Imagine that a very common action is to update the cached count value for items.
-Maybe this is done by doing a SQL count operation and then updating the count
-value in redis. If this were to happen hundreds of times per second, it would
-be a total waste to recount the values each time to refresh the count. We could
-bunch the requests made to update a record's count using the `single` call.
+We want to pool multiple read requests to a cache together to take advantage of
+multi-get performance.
 
-Given this as our code without bunching, we can see that all calls to `refreshCount`
-are going to go to the DB, count the records, and go to the cache.
+Say our code initially looks like this:
+
 ```javascript
-function refreshCount(id) {
-  return expensiveDBCount(id)
-  .then(count => updateCacheCount(id, count));
+function readFromCache(key) {
+  return cache.get(key);
 }
 ```
 
-We could instead change the code to use bunching, so that hundreds or thousands
-of calls within a time frame will be bundled together to avoid going to the db.
+Every time we call `readFromCache`, we do a single call to the cache. If we did
+1000 requests within 200ms, it would do 1000 individual calls.
+
+In order to let these bunch up for a multi-get, we can use `bunchie`.
+
 ```javascript
-function refreshCount(id) {
-  bunchie.single(id, {minWait: 300}) // We let requests bunch up over 500ms before executing the call to the cache.
-  .then(() => expensiveDBCount(id))
-  .then(count => updatedCacheCount(id, count));
+const { bunch } = require('bunchie');
+
+const readFromCache = bunch((keys) => {
+  return cache.multiGet(keys.flat());
+});
+```
+
+Now `readFromCache` will batch up requests before hitting the cache. We'll want
+to add some configuration.
+
+Say that we want to wait 50 milliseconds for additional requests to the cache,
+otherwise we invoke the handler. We do this by adding a `debounce` property to
+the config.
+
+```javascript
+const readFromCache = bunch((keys) => {
+  return cache.multiGet(keys.flat());
+}, {
+  debounce: 50
+});
+```
+
+Now `readFromCache` can be invoked, and will wait up to 50ms for another request
+to come in before going to the cache. This is good, but we don't want to let this
+process be pushed back indefinitely, so let's say we'd like to have this go on
+for a maximum of 200ms. We do this through the `maxTimeout` property.
+
+```javascript
+const readFromCache = bunch((keys) => {
+  return cache.multiGet(keys.flat());
+}, {
+  debounce: 50,
+  maxTimeout: 200
+});
+```
+
+And finally, let's say that there is a maximum amount of invocations we'd like
+to handle within a timeout before moving forward with the handle. Say we get 2000
+requests in this 200ms period, and we only want to handle up to 100 keys in a single
+`multiGet` request. We do this through the `maxCount` property.
+
+```javascript
+const readFromCache = bunch((keys) => {
+  return cache.multiGet(keys.flat());
+}, {
+  debounce: 50,
+  maxTimeout: 200,
+  maxCount: 100
+});
+```
+
+So the result is, we could have these 3 requests come in as follows:
+```javascript
+readFromCache('harry');
+readFromCache('sally');
+readFromCache('billy');
+```
+
+And given that they've all occured within 50ms of one another, the handler function
+will be invoked with a `keys` value of `[['harry'], ['sally'], ['billy']]`, so
+we can do an efficient `multiGet` from the cache!
+
+
+## Advanced Example
+
+In the example above, let's say that `cache.multiGet` takes an array of keys, and
+returns an array of responses in the same order. As we have it in that example,
+the response to each of the `readFromCache` requests will be the array of responses
+in that batch. Let's have it instead map the response to the corresponding key.
+Invoking a `bunch`ed function actually provides some useful information in the
+response object, namely an `index` property to indicate in what order this invocation
+was done in. We can use this to map the cache response to the key. The `result`
+property contains the result of the handler function.
+
+```javascript
+const bunchedCache = bunch((keys) => {
+  return cache.multiGet(keys.flat());
+}, {
+  debounce: 50,
+  maxTimeout: 200,
+  maxCount: 100
+});
+
+function readFromCache(key) {
+  return bunchedCache(key)
+  // `index` is the index this `key` is in the `multiGet`, and `result` is an array
+  // of responses from the `multiGet`.
+  .then(({index, result}) => result[index]);
 }
 ```
 
-We've now added a blockage that will wait 300ms to bunch on a single value, in
-this case the `id` of the record to refresh the count for. Each new id encountered
-will begin its own timer, and after 300ms has passed, the bunchie's promise is
-resolved and the db will be counted and the cache updated. If 1 or 10,000 requests
-came in to update a single record, we're still only making one db call.
-
-
-
-If we don't want to have this behavior per single value, for which we used `single`
-in the example above, we can instead use `add` to push values to a set for bunching.
-An example use case of this would be that we make calls to retrieve from a cache,
-but not only would we like to deduplicate requests for the same value, but we'd
-also like to batch all requests to the cache together as a group, so that we can
-use `mget` multiget rather than many different requests.
+So now we can do:
 
 ```javascript
-bunchie.config({
-  minWait: 300 // We let requests bunch up over 500ms before executing the call to the cache.
+readFromCache('harry')
+.then(harryResult => {
+  // Even though behind the scenes `readFromCache` bunched my requests together
+  // and got an array response, we now still get specifically the harryResult!
 });
-
-// We add middleware to process the bunch that is being resolved as a bunched
-// unit, prior to going to the resolution of all of the individual promises.
-bunchie.addMiddleware((payload) => {
-  // Assume responses are keyed by their request key, so if I requested
-  // 'person_1234', this response object would have {person_1234: {...persons informaiton}}
-  return redis.mget(Array.from(payload.bunch))
-  .then(response => Object.assign(payload, {mgetResponse: response}));
-});
-
-cache.get = (key) => {
-  bunchie.bunch(key)
-  .then(({item, bunch, mgetResponse}) => {
-    // This will be called after the middleware, which is for handling the bunch
-    // collectively.
-
-    // The redis responses were keyed by the request key, so we can get the
-    // specific response we're looking for like this.
-    return mgetResponse[key];
-  });
-};
 ```
-
-
-
-So then in your code, you could now simply call `cache.get('some_cache_key')`
-without having to worry about making thousands of individual requests to the
-cache, as they'll be bunched together into an mget behind the scenes.
