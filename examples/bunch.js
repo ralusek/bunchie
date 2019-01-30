@@ -1,6 +1,6 @@
 'use strict';
 
-const { bunch } = require('../');
+const { bunch } = require('../lib');
 
 
 const startedAt = Date.now();

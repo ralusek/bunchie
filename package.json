@@ -1,10 +1,15 @@
 {
   "name": "bunchie",
-  "version": "2.0.0",
+  "version": "2.0.1",
   "description": "Bunch up calls by count or time before resolving. Useful for clustering together requests to a remote service, or anything where gating together would be necessary.",
-  "main": "index.js",
+  "repository" : {
+    "type": "git",
+    "url": "https://github.com/ralusek/bunchie"
+  },
+  "main": "lib/index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "compile": "babel --presets es2015,stage-0 -d lib/ src/",
+    "prepublish": "npm run compile"
   },
   "keywords": [
     "bunch",
@@ -19,5 +24,10 @@
     "throttle"
   ],
   "author": "Tomas Savigliano",
-  "license": "ISC"
+  "license": "MIT",
+  "devDependencies": {
+    "babel-cli": "6.26.0",
+    "babel-preset-es2015": "6.24.1",
+    "babel-preset-stage-0": "6.24.1"
+  }
 }

@@ -1,6 +1,6 @@
 'use strict';
 
-const { bunchOnString } = require('../');
+const { bunchOnString } = require('../lib');
 
 
 const startedAt = Date.now();
