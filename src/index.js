@@ -74,30 +74,33 @@ module.exports.bunch = bunch;
 
 
 
-const bunchedOnString = {};
+const bunchedOnKey = {};
 
 
 /**
  *
  */
-function bunchOnString(string, handler, config) {
-  if (!bunchedOnString[string]) {
+function bunchOnKey(key, handler, config) {
+  if (!bunchedOnKey[key]) {
     config = config || {};
 
     const providedOnHandle = config.onHandle;
     // Override provided onHandle so that we can handle deleting the bunchie.
     // We then innvoke the provided onHandle if it was...provided.
     config.onHandle = (...handleArgs) => {
-      delete bunchedOnString[string];
+      delete bunchedOnKey[key];
       if (providedOnHandle) providedOnHandle(...handleArgs);
     };
 
-    bunchedOnString[string] = bunch((...args) => {
-      return handler(string, ...args);
+    bunchedOnKey[key] = bunch((...args) => {
+      return handler(key, ...args);
     }, config);
   }
 
-  return bunchedOnString[string];
+  return (...args) => {
+    return bunchedOnKey[key](...args)
+    .then(response => ({...response, key}));
+  };
 }
 
-module.exports.bunchOnString = bunchOnString;
+module.exports.bunchOnKey = bunchOnKey;

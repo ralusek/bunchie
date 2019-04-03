@@ -1,11 +1,11 @@
 'use strict';
 
-const { bunchOnString } = require('../lib');
+const { bunchOnKey } = require('../lib');
 
 
 const startedAt = Date.now();
 
-bunchOnString('abcde', (...args) => {
+bunchOnKey('abcde', (...args) => {
   console.log('Timer', Date.now() - startedAt);
   console.log('Handled', ...args);
 }, {maxTimeout: 1600})('Hi there')
@@ -13,7 +13,7 @@ bunchOnString('abcde', (...args) => {
   console.log('Done.', ...args);
 });
 
-bunchOnString('abcde', (...args) => {
+bunchOnKey('abcde', (...args) => {
   console.log('Timer', Date.now() - startedAt);
   console.log('Handled', ...args);
 }, {maxTimeout: 1600})('Hello')
@@ -21,10 +21,10 @@ bunchOnString('abcde', (...args) => {
   console.log('Done.', ...args);
 });
 
-bunchOnString('abcde', (...args) => {
+bunchOnKey('abcde', (...args) => {
   console.log('Timer', Date.now() - startedAt);
   console.log('Handled', ...args);
-}, {maxTimeout: 1600})('Sup')
+}, {maxTimeout: 1600})()
 .then((...args) => {
   console.log('Done.', ...args);
 });
