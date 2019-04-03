@@ -12,3 +12,19 @@ bunchOnString('abcde', (...args) => {
 .then((...args) => {
   console.log('Done.', ...args);
 });
+
+bunchOnString('abcde', (...args) => {
+  console.log('Timer', Date.now() - startedAt);
+  console.log('Handled', ...args);
+}, {maxTimeout: 1600})('Hello')
+.then((...args) => {
+  console.log('Done.', ...args);
+});
+
+bunchOnString('abcde', (...args) => {
+  console.log('Timer', Date.now() - startedAt);
+  console.log('Handled', ...args);
+}, {maxTimeout: 1600})('Sup')
+.then((...args) => {
+  console.log('Done.', ...args);
+});
