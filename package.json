@@ -1,6 +1,6 @@
 {
   "name": "bunchie",
-  "version": "2.1.0",
+  "version": "2.2.0",
   "description": "Bunch up calls by count or time before resolving. Useful for clustering together requests to a remote service, or anything where gating together would be necessary.",
   "repository": {
     "type": "git",
