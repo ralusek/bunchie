@@ -14,7 +14,6 @@ function bunch(handler, {
   let firstInvocation;
   let invokeBy;
   let activeTimeout;
-  let count;
   let deferred = [];
 
   reset();
@@ -22,13 +21,12 @@ function bunch(handler, {
   return (...args) => {
     firstInvocation = firstInvocation || Date.now();
 
-    let index;
-    if (args.length) index = argHistory.push(args) - 1;
+    const index = argHistory.push(args) - 1;
 
-    const promise = new Promise((resolve) => deferred.push({resolve, args, index}));
+    const promise = new Promise((resolve, reject) => deferred.push({resolve, reject, args, index}));
 
     // Handle case of maxCount.
-    if (++count === maxCount) handle(args);
+    if ((index + 1) === maxCount) handle(args);
     else {
       // Handle debounce.
       clearTimeout(activeTimeout);
@@ -42,7 +40,6 @@ function bunch(handler, {
 
   function reset() {
     argHistory = [];
-    count = 0;
     activeTimeout = clearTimeout(activeTimeout);
     firstInvocation = Date.now();
     invokeBy = firstInvocation + maxTimeout;
@@ -52,20 +49,44 @@ function bunch(handler, {
   function handle(...args) {
     const handleArgs = argHistory;
     const toDefer = deferred;
+    const batchStartedAt = firstInvocation;
+    const batchTimeTaken = Date.now() - batchStartedAt;
 
     reset();
 
     onHandle && onHandle(...handleArgs);
 
+    const batchMeta = {
+      handledWith: handleArgs,
+      batchStartedAt,
+      batchTimeTaken,
+    };
+
     return Promise.resolve(handler(...handleArgs))
-    .then(result => {
-      toDefer.forEach(deferred => deferred.resolve({
-        index: deferred.index,
-        invokedWith: deferred.args,
-        handledWith: handleArgs,
-        result
-      }));
-    });
+    .then(
+      result => {
+        toDefer.forEach(deferred => deferred.resolve({
+          ...batchMeta,
+          index: deferred.index,
+          invokedWith: deferred.args,
+          result,
+        }));
+      },
+      err => {
+        toDefer.forEach(deferred => {
+          err.bunchieMeta = {
+            // We omit deferred-specific information, as this error object
+            // is shared between all deferred responses, therefore only the
+            // handleArgs are added as meta.
+            // index: deferred.index,
+            // invokedWith: deferred.args,
+            ...batchMeta,
+          };
+
+          deferred.reject(err);
+        });
+      }
+    );
   }
 }
 
