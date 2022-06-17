@@ -1,3 +1,7 @@
+[![GitHub license](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/ralusek/bunchie/blob/master/LICENSE)
+[![npm version](https://img.shields.io/npm/v/bunchie.svg?style=flat)](https://www.npmjs.com/package/bunchie)
+[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](https://github.com/ralusek/bunchie/blob/master/LICENSE)
+
 This is a utility to batching together many individual calls by timing or by
 count before proceeding as a batch.
 
@@ -20,10 +24,11 @@ Every time we call `readFromCache`, we do a single call to the cache. If we did
 In order to let these bunch up for a multi-get, we can use `bunchie`.
 
 ```javascript
-const { bunch } = require('bunchie');
+import { bunch } from 'bunchie';
+
 
 const readFromCache = bunch((keys) => {
-  return cache.multiGet(keys.flat());
+  return cache.multiGet(keys);
 });
 ```
 
@@ -36,7 +41,7 @@ the config.
 
 ```javascript
 const readFromCache = bunch((keys) => {
-  return cache.multiGet(keys.flat());
+  return cache.multiGet(keys);
 }, {
   debounce: 50
 });
@@ -49,7 +54,7 @@ for a maximum of 200ms. We do this through the `maxTimeout` property.
 
 ```javascript
 const readFromCache = bunch((keys) => {
-  return cache.multiGet(keys.flat());
+  return cache.multiGet(keys);
 }, {
   debounce: 50,
   maxTimeout: 200
@@ -63,7 +68,7 @@ requests in this 200ms period, and we only want to handle up to 100 keys in a si
 
 ```javascript
 const readFromCache = bunch((keys) => {
-  return cache.multiGet(keys.flat());
+  return cache.multiGet(keys);
 }, {
   debounce: 50,
   maxTimeout: 200,
@@ -96,27 +101,24 @@ property contains the result of the handler function.
 
 ```javascript
 const bunchedCache = bunch((keys) => {
-  return cache.multiGet(keys.flat());
+  return cache.multiGet(keys);
 }, {
   debounce: 50,
   maxTimeout: 200,
   maxCount: 100
 });
-
-function readFromCache(key) {
-  return bunchedCache(key)
+async function readFromCache(key) {
+  const { index, result } = await bunchedCache(key);
   // `index` is the index this `key` is in the `multiGet`, and `result` is an array
   // of responses from the `multiGet`.
-  .then(({index, result}) => result[index]);
+  return result[index];
 }
 ```
 
 So now we can do:
 
 ```javascript
-readFromCache('harry')
-.then(harryResult => {
-  // Even though behind the scenes `readFromCache` bunched my requests together
-  // and got an array response, we now still get specifically the harryResult!
-});
+// Even though behind the scenes `readFromCache` bunched my requests together
+// and got an array response, we now still get specifically the harryResult!
+const harryResult = await readFromCache('harry');
 ```
