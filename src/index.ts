@@ -1,6 +1,8 @@
 import {
   Config,
+  ConstructKey,
   Defer,
+  Key,
   Result,
   TimeoutId,
 } from './types';
@@ -8,8 +10,8 @@ import {
 /**
  * 
  */
-export function bunch<T extends any, R extends any>(
-  fn: (args: (T | null)[]) => R | PromiseLike<R>,
+export function bunch<T extends any[], R extends any>(
+  fn: (args: T[]) => R | PromiseLike<R>,
   {
     debounce = 50,
     maxTimeout = Infinity,
@@ -22,13 +24,13 @@ export function bunch<T extends any, R extends any>(
   let firstInvocation: number | null;
   let invokeBy: number;
   let invocationCount = 0;
-  let argBunch: (T | null)[] = [];
+  let argBunch: T[] = [];
   let deferred: Defer<Result<T, R>>[] = [];
 
   reset();
 
-  return (arg?: T) => {
-    argBunch.push(arg || null);
+  return (...args: T) => {
+    argBunch.push(args);
 
     const promise = new Promise<Result<T, R>>((resolve, reject) => deferred.push({ resolve, reject }));
 
@@ -76,12 +78,12 @@ export function bunch<T extends any, R extends any>(
 
     try {
       const result = await fn(snapshot.argBunch);
-      snapshot.argBunch.forEach((argument, index) => {
+      snapshot.argBunch.forEach((args, index) => {
         const defer = snapshot.deferred[index];
         defer.resolve({
           result,
           index,
-          argument,
+          arguments: args,
           bunch: {
             size: snapshot.invocationCount,
             arguments: snapshot.argBunch,
@@ -101,22 +103,21 @@ export function bunch<T extends any, R extends any>(
 
 
 
-export function keyed<T extends any, R extends any>(
-  fn: (args: (T | null)[]) => R | PromiseLike<R>,
+export function keyed<T extends any[], R extends any>(
+  fn: (args: T[]) => R | PromiseLike<R>,
   config: Config<T> = {}
 ) {
   const map: {
-    [key in string]: (arg?: T | undefined) => Promise<Result<T, R>>;
+    [key in string]: (...args: T) => Promise<Result<T, R>>;
   } = {};
 
-  return (key: string | string[], arg?: T) => {
-    // console.log('KEYS', Object.keys(map).length);
-    // console.log(Object.keys(map));
+  return async (key: Key | ConstructKey<T>, ...args: T) => {
     if (!key) throw new Error(`bunchie keyed must be provided a key.`);
-    key = Array.isArray(key) ? key : [key];
-    if (!key.length) throw new Error(`bunchie keyed cannot be provided an empty array as a key.`);
+    const constructedKey = typeof key === 'function' ? key(...args) : key;
+    const keyAsArray = Array.isArray(constructedKey) ? constructedKey : [constructedKey];
+    if (!keyAsArray.length) throw new Error(`bunchie keyed cannot be provided an empty array as a key.`);
 
-    const joined = key.join(',');
+    const joined = keyAsArray.join(',');
 
     if (!map[joined]) {
       map[joined] = bunch(fn, {
@@ -125,6 +126,10 @@ export function keyed<T extends any, R extends any>(
       })
     }
 
-    return map[joined](arg);
+    const result = await map[joined](...args);
+    return {
+      key: keyAsArray,
+      ...result,
+    };
   };
 }

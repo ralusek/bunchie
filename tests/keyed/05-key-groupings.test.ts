@@ -16,13 +16,21 @@ describe('argument bunching', () => {
 
     expect(a.result).to.equal('hello');
     expect(a.index).to.equal(0);
-    expect(a.argument).to.equal('a');
+    expect(a.arguments.join('')).to.equal('a');
     expect(a.bunch.size).to.equal(2);
+    a.bunch.arguments.forEach((argumentSet) => {
+      expect(Array.isArray(argumentSet)).to.be.true;
+      expect(argumentSet.length).to.equal(1);
+    });
     expect(a.bunch.arguments.join(', ')).to.equal('a, b');
     expect(c.result).to.equal('hello');
     expect(c.index).to.equal(0);
-    expect(c.argument).to.equal('c');
+    expect(c.arguments.join('')).to.equal('c');
     expect(c.bunch.size).to.equal(2);
+    c.bunch.arguments.forEach((argumentSet) => {
+      expect(Array.isArray(argumentSet)).to.be.true;
+      expect(argumentSet.length).to.equal(1);
+    });
     expect(c.bunch.arguments.join(', ')).to.equal('c, d');
   });
 });

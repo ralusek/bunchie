@@ -8,8 +8,12 @@ export type Config<T> = {
   maxTimeout?: number;
   maxCount?: number;
   onNewBunch?: () => void;
-  onBunchExecute?: (args: (T | null)[]) => void;
+  onBunchExecute?: (args: T[]) => void;
 };
+
+export type Key = string | string[];
+
+export type ConstructKey<T extends any[]> = (...args: T) => Key;
 
 export type Defer<R> = {
   resolve: (response: R) => void;
@@ -19,9 +23,9 @@ export type Defer<R> = {
 export type Result<T, R> = {
   result: R;
   index: number;
-  argument: T | null;
+  arguments: T;
   bunch: {
     size: number;
-    arguments: (T | null)[];
+    arguments: T[];
   };
 };
