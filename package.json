@@ -1,6 +1,6 @@
 {
   "name": "bunchie",
-  "version": "3.0.0",
+  "version": "4.0.0",
   "description": "A keyed debouncer.",
   "keywords": [
     "bunch",
@@ -23,7 +23,7 @@
   "scripts": {
     "build": "npx ttsc",
     "start": "npm run build",
-    "test": "npm run build && mocha -r ts-node/register tests/**/*.test.ts",
+    "test": "npm run build && mocha --bail -r ts-node/register tests/**/*.test.ts",
     "prepublish": "npm run build",
     "prettify": "npx prettier --write '**/*.ts'"
   },
