@@ -5,14 +5,14 @@ import { keyed } from '../../lib';
 
 describe('max invocation', () => {
   it('should run a bunch upon reaching max invocations.', async () => {
-    const bunched = keyed(() => 'hello', { maxCount: 3 });
+    const bunched = keyed('key', () => 'hello', { maxCount: 3, includeAllBatchArguments: true, includeMetadataInResponse: true });
     
     const [ responseA, b, c, responseD, e ] = await Promise.all([
-      bunched('key', 'a'),
-      bunched('key', 'b'),
-      bunched('key', 'c'),
-      bunched('key', 'd'),
-      bunched('key', 'e'),
+      bunched('a'),
+      bunched('b'),
+      bunched('c'),
+      bunched('d'),
+      bunched('e'),
     ]);
 
     expect(responseA.result).to.equal('hello');

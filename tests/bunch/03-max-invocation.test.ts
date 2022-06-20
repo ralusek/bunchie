@@ -5,7 +5,7 @@ import { bunch } from '../../lib';
 
 describe('max invocation', () => {
   it('should run a bunch upon reaching max invocations.', async () => {
-    const bunched = bunch((args) => 'hello', { maxCount: 3 });
+    const bunched = bunch((args) => 'hello', { maxCount: 3, includeAllBatchArguments: true, includeMetadataInResponse: true });
     
     const [ responseA, b, c, responseD, e ] = await Promise.all([
       bunched('a'),

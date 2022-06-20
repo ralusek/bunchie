@@ -23,7 +23,7 @@
   "scripts": {
     "build": "npx ttsc",
     "start": "npm run build",
-    "test": "npm run build && mocha --bail -r ts-node/register tests/**/*.test.ts",
+    "test": "npm run build && mocha --expose-gc --bail -r ts-node/register tests/**/*.test.ts",
     "prepublish": "npm run build",
     "prettify": "npx prettier --write '**/*.ts'"
   },
@@ -39,6 +39,7 @@
     "@types/validator": "^13.7.1",
     "chai": "^4.3.6",
     "husky": "^7.0.4",
+    "indigobird": "^0.3.1",
     "mocha": "^9.2.0",
     "prettier": "^2.5.1",
     "pretty-quick": "^3.1.3",
