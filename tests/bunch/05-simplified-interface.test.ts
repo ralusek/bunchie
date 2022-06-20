@@ -6,9 +6,9 @@ import { bunch } from '../../lib';
 describe('simplified interface', () => {
   it('should just pass in last argument set to handler and only return result', async () => {
     let handlerWasCalled = false;
-    const bunched = bunch((args) => {
+    const bunched = bunch((arg) => {
       handlerWasCalled = true;
-      expect(args.join('')).to.equal('c');
+      expect(arg).to.equal('c');
       return 'hello';
     }, { includeAllBatchArguments: false, includeMetadataInResponse: false });
     

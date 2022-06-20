@@ -15,7 +15,7 @@ export function bunch<T extends any[], R extends any>(
   config: Config<T> & { includeMetadataInResponse: true; includeAllBatchArguments: true; },
 ): (...args: T) => Promise<Result<T, R>>;
 export function bunch<T extends any[], R extends any>(
-  fn: (args: T) => R | PromiseLike<R>,
+  fn: (...args: T) => R | PromiseLike<R>,
   config: Config<T> & { includeMetadataInResponse: true; includeAllBatchArguments?: false; },
 ): (...args: T) => Promise<Result<T, R>>;
 export function bunch<T extends any[], R extends any>(
@@ -23,7 +23,7 @@ export function bunch<T extends any[], R extends any>(
   config: Config<T> & { includeMetadataInResponse?: false; includeAllBatchArguments: true; },
 ): (...args: T) => Promise<R>;
 export function bunch<T extends any[], R extends any>(
-  fn: (args: T) => R | PromiseLike<R>,
+  fn: (...args: T) => R | PromiseLike<R>,
   config: Config<T> & { includeMetadataInResponse?: false; includeAllBatchArguments?: false; },
 ): (...args: T) => Promise<R>;
 export function bunch<T extends any[], R extends any>(
@@ -31,7 +31,7 @@ export function bunch<T extends any[], R extends any>(
   config: Config<T> & { includeMetadataInResponse?: boolean; includeAllBatchArguments?: boolean; },
 ): (...args: T) => Promise<R | Result<T, R>>;
 export function bunch<T extends any[], R extends any>(
-  fn: (args: T[] | T) => R | PromiseLike<R>,
+  fn: ((args: T[]) => R | PromiseLike<R>) | ((...args: T) => R | PromiseLike<R>),
   {
     debounce = 50,
     maxTimeout = Infinity,
@@ -99,11 +99,11 @@ export function bunch<T extends any[], R extends any>(
     onBunchExecute([...snapshot.argBunch]);
 
     try {
-      const result = await fn(
-        includeAllBatchArguments
-          ? snapshot.argBunch
-          : snapshot.argBunch[snapshot.argBunch.length - 1]
-      );
+      const result = includeAllBatchArguments
+        ? await fn(snapshot.argBunch)
+        // @ts-ignore
+        : await fn(...snapshot.argBunch[snapshot.argBunch.length - 1]);
+ 
 
       snapshot.argBunch.forEach((args, index) => {
         const defer = snapshot.deferred[index];
@@ -131,26 +131,6 @@ export function bunch<T extends any[], R extends any>(
 }
 
 
-// export function bunch<T extends any[], R extends any>(
-//   fn: (args: T) => R | PromiseLike<R>,
-//   config: Config<T> = {}
-// ) {
-//   // Wrap handler so that we only take the last set of arguments
-//   // passed to debouncer, rather than the array of all sets of
-//   // arguments that were passed.
-//   const bunched = bunch((argBunch: T[]) => {
-//     const lastArgs = argBunch[argBunch.length - 1];
-//     return fn(lastArgs);
-//   }, config);
-
-//   // Wrap caller in order to extra `result` property.
-//   return async (...args: T) => {
-//     const { result } = await bunched(...args);
-//     return result;
-//   };
-// }
-
-
 export function keyed<T extends any[], R extends any>(
   key: Key | ConstructKey<T>,
   fn: (args: T[]) => R | PromiseLike<R>,
@@ -158,7 +138,7 @@ export function keyed<T extends any[], R extends any>(
 ): (...args: T) => Promise<ResultKeyed<T, R>>;
 export function keyed<T extends any[], R extends any>(
   key: Key | ConstructKey<T>,
-  fn: (args: T) => R | PromiseLike<R>,
+  fn: (...args: T) => R | PromiseLike<R>,
   config?: Config<T> & { includeMetadataInResponse: true; includeAllBatchArguments?: false; },
 ): (...args: T) => Promise<ResultKeyed<T, R>>;
 export function keyed<T extends any[], R extends any>(
@@ -168,7 +148,7 @@ export function keyed<T extends any[], R extends any>(
 ): (...args: T) => Promise<R>;
 export function keyed<T extends any[], R extends any>(
   key: Key | ConstructKey<T>,
-  fn: (args: T) => R | PromiseLike<R>,
+  fn: (...args: T) => R | PromiseLike<R>,
   config?: Config<T> & { includeMetadataInResponse?: false; includeAllBatchArguments?: false; },
 ): (...args: T) => Promise<R>;
 export function keyed<T extends any[], R extends any>(
