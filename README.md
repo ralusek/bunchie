@@ -29,6 +29,11 @@ import { bunch } from 'bunchie';
 
 const readFromCache = bunch((keys) => {
   return cache.multiGet(keys);
+}, {
+  // This flag makes the `keys` argument above have *all* of the arguments
+  // that have been passed to this functino as it has been being debounced
+  // for the current batch. Default is simply the last.
+  includeAllBatchArguments: true,
 });
 ```
 
@@ -43,7 +48,8 @@ the config.
 const readFromCache = bunch((keys) => {
   return cache.multiGet(keys);
 }, {
-  debounce: 50
+  debounce: 50,
+  includeAllBatchArguments: true,
 });
 ```
 
@@ -57,7 +63,8 @@ const readFromCache = bunch((keys) => {
   return cache.multiGet(keys);
 }, {
   debounce: 50,
-  maxTimeout: 200
+  maxTimeout: 200,
+  includeAllBatchArguments: true,
 });
 ```
 
@@ -72,7 +79,8 @@ const readFromCache = bunch((keys) => {
 }, {
   debounce: 50,
   maxTimeout: 200,
-  maxCount: 100
+  maxCount: 100,
+  includeAllBatchArguments: true,
 });
 ```
 
@@ -105,7 +113,16 @@ const bunchedCache = bunch((keys) => {
 }, {
   debounce: 50,
   maxTimeout: 200,
-  maxCount: 100
+  maxCount: 100,
+  includeAllBatchArguments: true,
+  // This flag means we'll get additional metadata about the current batch
+  // being invoked, as well as info about the specific invocation that we
+  // just called. Some of this includes the `index`, seen here, which would
+  // be the order number in which this invocation occurred for this batch.
+  // Can be used to do something like what is demonstrated here, where the index
+  // is used to get the appropriate item from the response object such that
+  // it corresponds with this invocation.
+  includeMetadataInResponse: true,
 });
 async function readFromCache(key) {
   const { index, result } = await bunchedCache(key);

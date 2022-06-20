@@ -5,7 +5,7 @@ import { bunch } from '../../lib';
 
 describe('argument bunching', () => {
   it('should bunch arguments as expected.', async () => {
-    const bunched = bunch(() => 'hello');
+    const bunched = bunch(() => 'hello', { includeAllBatchArguments: true, includeMetadataInResponse: true });
     
     const [ response ] = await Promise.all([
       bunched('a'),

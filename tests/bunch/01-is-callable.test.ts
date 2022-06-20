@@ -5,7 +5,7 @@ import { bunch } from '../../lib';
 
 describe('Invocation', () => {
   it('should be able to be executed.', async () => {
-    const bunched = bunch(() => {});
+    const bunched = bunch(() => {}, { includeAllBatchArguments: true, includeMetadataInResponse: true });
     expect(bunched).to.not.be.undefined;
     expect(typeof bunched).to.equal('function');
     let resolved = false;

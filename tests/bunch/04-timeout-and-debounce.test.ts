@@ -12,7 +12,7 @@ const timeoutPromise = async (fn: () => void, timeout: number) => {
 
 describe('debouncing and timing', () => {
   it('should debounce calls as expected.', async () => {
-    const bunched = bunch(() => 'hello', { maxTimeout: 300, debounce: 100 });
+    const bunched = bunch(() => 'hello', { maxTimeout: 300, debounce: 100, includeAllBatchArguments: true, includeMetadataInResponse: true });
 
     const aPromise = bunched('a');
     await timeoutPromise(() => { bunched('b') }, 80);
@@ -48,7 +48,7 @@ describe('debouncing and timing', () => {
   });
 
   it('should stop debouncing upon hitting maxTimout', async () => {
-    const bunched = bunch((x: [string][]) => 'hello', { maxTimeout: 150, debounce: 100 });
+    const bunched = bunch((x: [string][]) => 'hello', { maxTimeout: 150, debounce: 100, includeAllBatchArguments: true, includeMetadataInResponse: true });
 
     const aPromise = bunched('a');
     let cPromise: Promise<Result<[string], string>> = new Promise(() => {});

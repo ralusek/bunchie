@@ -12,16 +12,16 @@ const timeoutPromise = async (fn: () => void, timeout: number) => {
 
 describe('debouncing and timing', () => {
   it('should debounce calls as expected.', async () => {
-    const bunched = keyed(() => 'hello', { maxTimeout: 300, debounce: 100 });
+    const bunched = keyed('key', () => 'hello', { maxTimeout: 300, debounce: 100, includeAllBatchArguments: true, includeMetadataInResponse: true });
 
-    const aPromise = bunched('key', 'a');
-    await timeoutPromise(() => { bunched('key', 'b') }, 80);
-    await timeoutPromise(() => { bunched('key', 'c') }, 80);
-    await timeoutPromise(() => { bunched('key', 'd') }, 80);
+    const aPromise = bunched('a');
+    await timeoutPromise(() => { bunched('b') }, 80);
+    await timeoutPromise(() => { bunched('c') }, 80);
+    await timeoutPromise(() => { bunched('d') }, 80);
     await timeoutPromise(() => {}, 200);
 
-    const ePromise = bunched('key', 'e');
-    await timeoutPromise(() => { bunched('key', 'f') }, 50);
+    const ePromise = bunched('e');
+    await timeoutPromise(() => { bunched('f') }, 50);
     
     const [a, e] = await Promise.all([aPromise, ePromise]);
 
@@ -48,17 +48,17 @@ describe('debouncing and timing', () => {
   });
 
   it('should stop debouncing upon hitting maxTimout', async () => {
-    const bunched = keyed((x: [string][]) => 'hello', { maxTimeout: 150, debounce: 100 });
+    const bunched = keyed('key', (x: [string][]) => 'hello', { maxTimeout: 150, debounce: 100, includeAllBatchArguments: true, includeMetadataInResponse: true });
 
-    const aPromise = bunched('key', 'a');
+    const aPromise = bunched('a');
     let cPromise: Promise<Result<[string], string>> = new Promise(() => {});
-    await timeoutPromise(() => { bunched('key', 'b') }, 80);
-    await timeoutPromise(() => { cPromise = bunched('key', 'c') }, 80);
-    await timeoutPromise(() => { bunched('key', 'd') }, 80);
+    await timeoutPromise(() => { bunched('b') }, 80);
+    await timeoutPromise(() => { cPromise = bunched('c') }, 80);
+    await timeoutPromise(() => { bunched('d') }, 80);
     await timeoutPromise(() => {}, 200);
 
-    const ePromise = bunched('key', 'e');
-    await timeoutPromise(() => { bunched('key', 'f') }, 50);
+    const ePromise = bunched('e');
+    await timeoutPromise(() => { bunched('f') }, 50);
     
     const [a, c, e] = await Promise.all([aPromise, cPromise, ePromise]);
 

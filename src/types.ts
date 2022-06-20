@@ -9,6 +9,11 @@ export type Config<T> = {
   maxCount?: number;
   onNewBunch?: () => void;
   onBunchExecute?: (args: T[]) => void;
+  // Will pass along the arguments provided, in order of invocation,
+  // for every invocation in this batch.
+  includeAllBatchArguments?: boolean;
+  // Will pass along batch metadata
+  includeMetadataInResponse?: boolean;
 };
 
 export type Key = string | string[];
@@ -29,3 +34,5 @@ export type Result<T, R> = {
     arguments: T[];
   };
 };
+
+export type ResultKeyed<T, R> = Result<T, R> & { key: string[]; };

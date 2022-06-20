@@ -5,12 +5,12 @@ import { keyed } from '../../lib';
 
 describe('Invocation', () => {
   it('should be able to be executed.', async () => {
-    const bunched = keyed(() => {});
+    const bunched = keyed('hi', () => {}, { includeAllBatchArguments: true, includeMetadataInResponse: true });
     expect(bunched).to.not.be.undefined;
     expect(typeof bunched).to.equal('function');
     let resolved = false;
     let errored = false;
-    await (bunched('hi')
+    await (bunched()
     .then(() => resolved = true)
     .catch(err => errored = true));
 

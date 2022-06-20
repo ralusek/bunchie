@@ -5,12 +5,12 @@ import { keyed } from '../../lib';
 
 describe('argument bunching', () => {
   it('should bunch arguments as expected.', async () => {
-    const bunched = keyed(() => 'hello');
+    const bunched = keyed('key', () => 'hello', { includeAllBatchArguments: true, includeMetadataInResponse: true });
     
     const [ response ] = await Promise.all([
-      bunched('key', 'a'),
-      bunched('key', 'b'),
-      bunched('key', 'c'),
+      bunched('a'),
+      bunched('b'),
+      bunched('c'),
     ]);
 
     expect(response.result).to.equal('hello');
